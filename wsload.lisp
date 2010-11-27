@@ -1,0 +1,6 @@
+(asdf:oos 'asdf:load-op 'cl-who)
+(asdf:oos 'asdf:load-op 'drakma)
+(asdf:oos 'asdf:load-op 'xml-emitter)
+(load "/Users/deepaksurti/lisp/website.lisp")
+(setq *sitedir* "/Users/deepaksurti/wwwc/")
+(setq *sitehtmldir* "/Users/deepaksurti/www/")
