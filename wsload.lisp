@@ -2,7 +2,7 @@
 (asdf:oos 'asdf:load-op 'drakma)
 (asdf:oos 'asdf:load-op 'xml-emitter)
 (asdf:oos 'asdf:load-op 'cl-fad)
-(load "/Users/deepaksurti/lisp/website/website.lisp")
+(load "/Users/deepaksurti/lisp/website-refact/website.lisp")
 (setq *sitedir* "/Users/deepaksurti/wwwc/")
 (setq *sitehtmldir* "/Users/deepaksurti/www/")
 (setq *intsitedir* "/Users/deepaksurti/www-int/")

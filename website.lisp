@@ -205,10 +205,7 @@ is replaced with replacement."
   "Generates the html for txt if supplied. Otherwise generates the html containing table
    of contents for dir."
   (let ((file (concat *sitehtmldir* dir "index.html"))
-        (index-header (if (directory (concat *sitedir* dir "index.tex"))
-  			   (extract-body dir "index.txt")))
         (toc (generate-toc dir)))
-     (format t " Staring macro to generate index html... ~%")
     `(with-open-file (str ,file :direction :output
 			  :if-exists :supersede
 			  :if-does-not-exist :create)
@@ -219,8 +216,6 @@ is replaced with replacement."
            (:title ,*author*)
            (:meta :name "description" :content "Lisp, Java, Flex, Programming and related stuff")
            (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
-	   ,(if index-header
- 		`(:link :rel "stylesheet" :href "index.css" :type "text/css"))
 	   (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
            (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
            (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
@@ -250,89 +245,57 @@ is replaced with replacement."
 			    (:p :class "copyright" "Copyright &copy; 2009-2011" 
 			       (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
 		(:div :class "mydiv" :id "content"
-			  ,(if index-header 
-			     `(:div :class "mydiv" ,index-header))
     		          ,(if (> (length toc) 1)
 			     `(:div :id "toc" ,toc))))))))))
 
 (defun not-root-htmlp (dir)
   (if (equal dir *sitehtmldir*) nil dir))
 
-(defmacro generate-html (dir &optional txt)
-  "Generates the html for txt if supplied. Otherwise generates the html containing table
-   of contents for dir."
-  (let ((file (if txt
-		  (concat  *sitehtmldir* (not-rootp dir) (txt-html txt))
-		  (concat *sitehtmldir* dir "index.html")))
-        (content (if txt 
-                     (generate-content dir txt)))
-        (body-content (if (not-rootp dir) (extract-body dir txt)))
-        (index-header (if (index-headerp dir)
-                          (generate-content dir "index.txt")))
-        (toc (if (null txt) 
-                 (generate-toc dir))))
-     (format t " Staring macro ... ~%")
+(defmacro generate-html (dir txt)
+  "Generates the html for content page"
+  (let ((file (concat  *sitehtmldir* (not-rootp dir) (txt-html txt)))
+        (body-content (if (not-rootp dir) (extract-body dir txt))))
     `(with-open-file (str ,file :direction :output
 			  :if-exists :supersede
 			  :if-does-not-exist :create)
        (cl-who:with-html-output (str nil :prologue t :indent t)
 	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
 	  (:head
-	   (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
-           ,@(if (and txt (not-rootp dir))
-                `((:title ,@(list (car content)))
-		  (:meta :name "description" :content ,@(list (cadr content))))
-                `((:title ,*author*)
-                  (:meta :name "description" :content "Lisp, Java, Flex, Programming and related stuff")))
-           (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
-	   (:link :rel "stylesheet" :href ,(txt-css txt) :type "text/css")
-	   (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
-           (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
-           (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
-           (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
-	   (:script :src "http://www.google.com/jsapi" :type "text/javascript")
-	   (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
-           (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript"))
+	    (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
+	    (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
+	    (:link :rel "stylesheet" :href ,(txt-css txt) :type "text/css")
+	    (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
+	    (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
+	    (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
+	    (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
+	    (:script :src "http://www.google.com/jsapi" :type "text/javascript")
+	    (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
+	    (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript"))
 	  (:body
-	   ,(if (search "image.txt" txt)
-	        `(:div :class "mydiv" ,@(cddr content)) 	
-	        `(:div :class "mydiv" :id "page"
-		   (:div :class "mydiv" :id "header"
-		       (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!"))
-		   (:div :class "mydiv" :id "sidebar"
-		       (:div :class "mydiv" 
-			(:ul :class "buttonmenu"
-			   (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
-			      ,@(generate-sidebar dir)))
-		       (:div :class "mydiv" :id "info"
-			     (:br)
-                             (:img :src ,(concat (rel-path dir) "extras/images/vi.png") :alt "Vi Powered")
-			     (:img :src ,(concat (rel-path dir) "extras/images/valid-xhtml10-blue.png") :alt "Valid XHTML 1.0")
-			     (:img :src ,(concat (rel-path dir) "extras/images/valid-css-blue.png") :alt "Valid CSS")
-			     (:img :src ,(concat (rel-path dir) "extras/images/valid-rss.png") :alt "Valid RSS")
-		             ,(generate-string (concat *sitedir* "addthisfeed.txt"))
-			     (:div :class "mydiv" :id "copyr"
-  			       (:p "Best viewed in Firefox, Safari, IE8.")
-  			       (:br)
-  			       (:p :class "copyright" "Copyright &copy; 2009-2011" 
-  				  (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
-		   (:div :class "mydiv" :id "content"
-		       ,@(if txt
-			     `((:h3 :id ,(if (equal txt "index.txt")
-					     "home-h3")
-				    ,(car content))
-			       ,(if (not (equal txt "index.txt"))
-				    `(:h5 ,(file-date dir txt)))
-                               ,body-content ;now body is extract from html generated via htlatex
-			       ,(if (and txt (not-rootp dir))
-				    (generate-string (concat *sitedir* "addthis.txt"))))
-			     `(,(if index-header 
-				    `(:div :class "mydiv" ,(apply #'concat index-header)))
-				,(if (> (length toc) 1)
-				     `(:div :id "toc" 
-					     ,toc))))
-		       ,@(if (and txt (not-rootp dir))
-			     `(,(generate-string (concat *sitedir* "disqus.txt")))))))))))))
+	    (:div :class "mydiv" :id "page"
+	       (:div :class "mydiv" :id "header"
+		   (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!"))
+	       (:div :class "mydiv" :id "sidebar"
+		   (:div :class "mydiv" 
+		    (:ul :class "buttonmenu"
+		       (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
+			  ,@(generate-sidebar dir)))
+		   (:div :class "mydiv" :id "info"
+		      (:br)
+		      (:img :src ,(concat (rel-path dir) "extras/images/vi.png") :alt "Vi Powered")
+		      (:img :src ,(concat (rel-path dir) "extras/images/valid-xhtml10-blue.png") :alt "Valid XHTML 1.0")
+		      (:img :src ,(concat (rel-path dir) "extras/images/valid-css-blue.png") :alt "Valid CSS")
+		      (:img :src ,(concat (rel-path dir) "extras/images/valid-rss.png") :alt "Valid RSS")
+		      ,(generate-string (concat *sitedir* "addthisfeed.txt"))
+		      (:div :class "mydiv" :id "copyr"
+			(:p "Best viewed in Firefox, Safari, IE8.")
+			(:br)
+			(:p :class "copyright" "Copyright &copy; 2009-2011" 
+			   (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
+	       (:div :class "mydiv" :id "content"
+		  ,body-content 
+		  ,(generate-string (concat *sitedir* "addthis.txt")))
+		  ,(generate-string (concat *sitedir* "disqus.txt")))))))))
 
 
 (defparameter months #("nil" "Jan" "Feb" "Mar" "Apr" "May" "Jun"
