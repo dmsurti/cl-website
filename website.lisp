@@ -251,52 +251,130 @@ is replaced with replacement."
 (defun not-root-htmlp (dir)
   (if (equal dir *sitehtmldir*) nil dir))
 
-(defmacro generate-html (dir txt)
+(defun toc-html (dir)
+  (let ((toc (generate-toc dir)))
+    `(:div :class "mydiv" :id "content"
+       ,(if (> (length toc) 1)
+           `(:div :id "toc" ,toc)))))
+
+(defmacro page (file head body)
   "Generates the html for content page"
-  (let ((file (concat  *sitehtmldir* (not-rootp dir) (txt-html txt)))
-        (body-content (if (not-rootp dir) (extract-body dir txt))))
     `(with-open-file (str ,file :direction :output
 			  :if-exists :supersede
 			  :if-does-not-exist :create)
        (cl-who:with-html-output (str nil :prologue t :indent t)
 	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
-	  (:head
-	    (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
-	    (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
-	    (:link :rel "stylesheet" :href ,(txt-css txt) :type "text/css")
-	    (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
-	    (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
-	    (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
-	    (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
-	    (:script :src "http://www.google.com/jsapi" :type "text/javascript")
-	    (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
-	    (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript"))
-	  (:body
-	    (:div :class "mydiv" :id "page"
-	       (:div :class "mydiv" :id "header"
-		   (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!"))
-	       (:div :class "mydiv" :id "sidebar"
-		   (:div :class "mydiv" 
-		    (:ul :class "buttonmenu"
-		       (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
-			  ,@(generate-sidebar dir)))
-		   (:div :class "mydiv" :id "info"
-		      (:br)
-		      (:img :src ,(concat (rel-path dir) "extras/images/vi.png") :alt "Vi Powered")
-		      (:img :src ,(concat (rel-path dir) "extras/images/valid-xhtml10-blue.png") :alt "Valid XHTML 1.0")
-		      (:img :src ,(concat (rel-path dir) "extras/images/valid-css-blue.png") :alt "Valid CSS")
-		      (:img :src ,(concat (rel-path dir) "extras/images/valid-rss.png") :alt "Valid RSS")
-		      ,(generate-string (concat *sitedir* "addthisfeed.txt"))
-		      (:div :class "mydiv" :id "copyr"
-			(:p "Best viewed in Firefox, Safari, IE8.")
-			(:br)
-			(:p :class "copyright" "Copyright &copy; 2009-2011" 
-			   (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
-	       (:div :class "mydiv" :id "content"
-		  ,body-content 
-		  ,(generate-string (concat *sitedir* "addthis.txt")))
-		  ,(generate-string (concat *sitedir* "disqus.txt")))))))))
+          ,head
+	  ,body))))
 
+(defmacro index-page$ (dir)
+  (let ((file (concat  *sitehtmldir* dir "index.html"))
+        (head (index-head-html dir))
+        (body (index-body-html dir)))
+    `(page ,file ,head ,body)))
+
+(defmacro content-page$ (dir txt)
+  (let ((file (concat  *sitehtmldir* dir (txt-html txt)))
+        (head (content-head-html dir txt))
+        (body (content-body-html dir txt)))
+    `(page ,file ,head ,body)))
+
+(defmacro index-page (dir)
+  "Generates the html for content page"
+  (let ((file (concat  *sitehtmldir* dir "index.html")))
+    `(with-open-file (str ,file :direction :output
+			  :if-exists :supersede
+			  :if-does-not-exist :create)
+       (cl-who:with-html-output (str nil :prologue t :indent t)
+	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
+          ,(index-head-html dir)
+	  ,(index-body-html dir))))))
+
+(defmacro content-page (dir txt)
+  "Generates the html for content page"
+  (let ((file (concat  *sitehtmldir* dir (txt-html txt))))
+    `(with-open-file (str ,file :direction :output
+			  :if-exists :supersede
+			  :if-does-not-exist :create)
+       (cl-who:with-html-output (str nil :prologue t :indent t)
+	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
+          ,(content-head-html dir txt)
+	  ,(content-body-html dir txt))))))
+
+(defun index-body-html (dir)
+  `(:body
+     (:div :class "mydiv" :id "page"
+	,(logo-html dir)
+	,(sidebar-html dir)
+	,(toc-html dir))))
+
+(defun content-body-html (dir txt)
+  `(:body
+     (:div :class "mydiv" :id "page"
+	,(logo-html dir)
+	,(sidebar-html dir)
+	,(content-html dir txt))))
+
+(defun sidebar-html (dir)
+  `(:div :class "mydiv" :id "sidebar"
+     ,(menu-html dir)
+     ,(info-html dir))) 
+
+(defun content-html (dir txt)
+  (let ((body-content (extract-body dir txt)))
+    `(:div :class "mydiv" :id "content"
+        ,body-content 
+        ,(generate-string (concat *sitedir* "addthis.txt"))
+        ,(generate-string (concat *sitedir* "disqus.txt")))))
+
+(defun index-head-html (dir)
+  `(:head
+     (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
+     (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
+     (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
+     (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
+     (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
+     (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
+     (:script :src "http://www.google.com/jsapi" :type "text/javascript")
+     (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
+     (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript")))
+
+(defun content-head-html (dir txt)
+  `(:head
+     (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
+     (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
+     (:link :rel "stylesheet" :href ,(txt-css txt) :type "text/css")
+     (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
+     (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
+     (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
+     (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
+     (:script :src "http://www.google.com/jsapi" :type "text/javascript")
+     (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
+     (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript")))
+
+(defun logo-html (dir)
+  `(:div :class "mydiv" :id "header"
+    (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!")))
+
+(defun menu-html (dir)
+  `(:div :class "mydiv"
+     (:ul :class "buttonmenu"
+       (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
+            ,@(generate-sidebar dir))))
+
+(defun info-html (dir)
+  `(:div :class "mydiv" :id "info"
+     (:br)
+     (:img :src ,(concat (rel-path dir) "extras/images/vi.png") :alt "Vi Powered")
+     (:img :src ,(concat (rel-path dir) "extras/images/valid-xhtml10-blue.png") :alt "Valid XHTML 1.0")
+     (:img :src ,(concat (rel-path dir) "extras/images/valid-css-blue.png") :alt "Valid CSS")
+     (:img :src ,(concat (rel-path dir) "extras/images/valid-rss.png") :alt "Valid RSS")
+    ,(generate-string (concat *sitedir* "addthisfeed.txt"))
+     (:div :class "mydiv" :id "copyr"
+       (:p "Best viewed in Firefox Safari IE8.")
+       (:br)
+       (:p :class "copyright" "Copyright &copy; 2009-2011"
+         (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
 
 (defparameter months #("nil" "Jan" "Feb" "Mar" "Apr" "May" "Jun"
 		            "Jul" "Aug" "Sep" "Oct" "Nov" "Dec")
