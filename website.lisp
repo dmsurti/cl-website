@@ -14,10 +14,6 @@
   "Concatenates args which are strings" 
   (apply #'concatenate 'string args))
 
-(defun not-rootp (dir)
-  "Checks if the dir is the same as root dir i.e. *sitedir*"
-  (if (equal dir *sitedir*) nil dir))
-
 (defun generate-string (file &optional (replace t))
   "Generates the string for the css file, as the validation service
    accepts only a string."
@@ -32,118 +28,9 @@
 	  ((eql line :eof))
 	    (if (and replace (search "&" line))
 		(push (replace-all line "&" "&amp;") all-lines)
-		(push line all-lines))))
+                (push (concat line " ") all-lines))))
     (nreverse all-lines)))
 
-(defun add-html-tags (lines)
-  "This function adds html tags to the lines read from a txt file with content."
-  (let (acc)
-    ;the first 2 lines are header and meta info while 3rd is an empty line
-    (push (nth 0 lines) acc)
-    (push (nth 1 lines) acc)
-    (do ((i 3 (+ i 1)) 
-         (len (length lines)))
-        ((> i (- len 1))) 
-      (let ((curr (nth i lines))
-            (prev (if (> i 0)
-                      (nth (- i 1) lines)))
-            (next (if (< i len)
-                      (nth (+ i 1) lines))))
-        (if (html-elt? (string-trim " " curr))
-            (push curr acc) 
-        (let ((temp curr) (p1 (string-trim " " prev)) (n1 (string-trim " " next)))
-           (format t "curr ~A ~% next ~A ~%~%" temp n1) 	  
-           (cond ((search "\\h4" curr) 
-                   (setq temp (concat (replace-all curr "\\h4" "<h4>" :test #'equal)
-                              "</h4>"))) 
-  		 ((search "\\h5" curr) (setq temp (concat (replace-all curr "\\h5" "<h5>" :test #'equal)
-                              "</h5>")))
-                ((search "\\begin" curr)
-                   (setq temp "<div class='src-code'><div><pre>"))
-  		((search "\\end" curr)
-                   (setq temp "</pre></div></div>"))
-  		((search "\\sul" curr)
-                   (setq temp "<ul>"))
-  		((search "\\eul" curr)
-                   (setq temp "</ul>"))
-  		((search "\\seli" curr)
-                   (setq temp (concat "<li>"
-                                           (replace-all curr "\\seli" "" :test #'equal) 
-  					 "</li>")))
-  		((search "\\sli" curr)
-                   (setq temp (concat "<li>"
-                                           (replace-all curr "\\sli" "" :test #'equal))))
-  		((search "\\eli" curr)
-                   (setq temp (concat (replace-all curr "\\eli" "" :test #'equal) 
-     				 	 "</li>")))
-  		((search "\\href" curr)
-  		 (setq temp (generate-href curr)) 
-                   (if (equal n1 "") (setq temp (concat temp "</p>")))
-                   (if (equal p1 "") (setq temp (concat "<p>" temp))) )
-  		((search "\\imghref" curr)
-  		 (setq temp (generate-img-href curr)) )
-  		((search "\\img" curr)
-  		 (setq temp (generate-img curr)))
-               ((and (equal p1 "") (null next))
-                   (setq temp (concat "<p>" curr "</p>")))
-  		((and (equal p1 "") (equal n1 ""))
-                   (setq temp (concat "<p>" curr "</p>")))
-                ((equal p1 "")
-                   (setq temp (concat "<p>" curr)))
-                ((or (null next) 
-                     (equal n1 ""))
-                   (setq temp (concat curr "</p>")))
-                (t (setq temp curr)))
-       	  (format t "~% ---- curr ~A ~% next ~A ~%~%" temp n1)
-          (push temp acc)))))
-    (nreverse acc))) 
-
-(defun html-elt? (elt)
- (let ((s (search "<" elt))
-       (e (search ">" elt :from-end t)))
-  (and (numberp s) (numberp e) 
-       (= s 0) (= e (1- (length elt))))))
-
-(defun generate-content% (dir txt)
- "This returns the content in a txt file after converting it to html."
-  (file-lines (concat *sitedir* (not-rootp dir) txt)))
-
-(defun generate-content (dir txt)
- "This returns the content in a txt file after converting it to html."
-  (format t "Generating Content ... ~%")
-  (add-html-tags 
-   (file-lines (concat *sitedir* (not-rootp dir) txt))))
-
-(defun generate-href (string)
-  "Generates the href tag."
-  (let ((s (split-by-one-space string)))
-    (concat "<a href=" 
-                 (cadr s) ">"
-                 (caddr s) "</a>")))
-
-(defun generate-img-href (string)
-  "Generates the img tag with href."
-  (let ((s (split-by-one-space string)))
-    (concat "<div class='image'>" 
-                 "<a href="
-                 (cadr s) ">"
-		 "<img src="
-                 (caddr s)
-                 " alt="
-                 (fourth s) "/>" "</a>"
-                 "<div class='caption'>"
-                 (fifth s) "</div></div>")))
-
-(defun generate-img (string)
-  "Generates the img tag."
-  (let ((s (split-by-one-space string)))
-    (concat "<div class='image'>" 
-                 "<img src="
-                 (cadr s) 
-                 " alt="
-                 (third s) "/>"
-                 "<div class='caption'>"
-                 (fourth s) "</div></div>")))
 
 ;a helper function from common lisp cookbook
 ;i use it to replace all & while rendering code in pre tag
@@ -162,94 +49,21 @@ is replaced with replacement."
             when pos do (write-string replacement out)
             while pos))) 
 
-(defun split-by-one-space (string)
-    "Returns a list of substrings of string
-    divided by ONE space each.
-    Note: Two consecutive spaces will be seen as
-    if there were an empty string between them."
-    (loop for i = 0 then (1+ j)
-          as j = (position #\Space string :start i)
-          collect (subseq string i j)
-          while j))
-
-(defun filep (path)
- "Check if the path is a file."
-  (= (1- (length path))
-     (position #\/ path :from-end t)))
-
-(defun txt-html (file)
-  "Return the html file name for txt file."
+(defun html-file (file)
+  "Return the html file name for given file."
   (concat (subseq file 0 (- (length file) 3)) "html"))
 
-(defun txt-tex (file)
-  "Return the tex file name for txt file."
-  (concat (subseq file 0 (- (length file) 3)) "tex"))
-
-(defun txt-css (file)
-  "Return the tex file name for txt file."
+(defun css-file (file)
+  "Return the tex file name for given file."
   (concat (subseq file 0 (- (length file) 3)) "css"))
 
-(defun index-headerp (dir)
-"Find if the directory has some header content for index in a file index.txt."
-  (directory (concat *sitedir* dir "index.txt")))
-
-(defun extract-body (dir txt)
-  (let ((file (concat *intsitedir* dir (txt-html txt))))
+(defun extract-body (dir tex)
+  (let ((file (concat *intsitedir* dir (html-file tex))))
     (with-open-file (str file :direction :input)
       (let ((content (generate-string file nil)))
-        (let ((start (search "<body >" content)))
+        (let ((start (search "<body  >" content)))
           (let ((end (search "</body>" content :start2 start)))
-            (subseq content (+ start 7) (- end 1))))))))
-
-(defmacro generate-index-html (dir)
-  "Generates the html for txt if supplied. Otherwise generates the html containing table
-   of contents for dir."
-  (let ((file (concat *sitehtmldir* dir "index.html"))
-        (toc (generate-toc dir)))
-    `(with-open-file (str ,file :direction :output
-			  :if-exists :supersede
-			  :if-does-not-exist :create)
-       (cl-who:with-html-output (str nil :prologue t :indent t)
-	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
-	  (:head
-	   (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
-           (:title ,*author*)
-           (:meta :name "description" :content "Lisp, Java, Flex, Programming and related stuff")
-           (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
-	   (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
-           (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
-           (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
-           (:link :rel "shortcut icon" :type "image/x-icon" :href "favicon.ico")
-	   (:script :src "http://www.google.com/jsapi" :type "text/javascript")
-	   (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
-           (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript"))
-	  (:body
-	     (:div :class "mydiv" :id "page"
-		(:div :class "mydiv" :id "header"
-		    (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!"))
-		(:div :class "mydiv" :id "sidebar"
-		    (:div :class "mydiv" 
-		     (:ul :class "buttonmenu"
-			(:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
-			   ,@(generate-sidebar dir)))
-		    (:div :class "mydiv" :id "info"
-			  (:br)
-			  (:img :src ,(concat (rel-path dir) "extras/images/vi.png") :alt "Vi Powered")
-			  (:img :src ,(concat (rel-path dir) "extras/images/valid-xhtml10-blue.png") :alt "Valid XHTML 1.0")
-			  (:img :src ,(concat (rel-path dir) "extras/images/valid-css-blue.png") :alt "Valid CSS")
-			  (:img :src ,(concat (rel-path dir) "extras/images/valid-rss.png") :alt "Valid RSS")
-			  ,(generate-string (concat *sitedir* "addthisfeed.txt"))
-			  (:div :class "mydiv" :id "copyr"
-			    (:p "Best viewed in Firefox, Safari, IE8.")
-			    (:br)
-			    (:p :class "copyright" "Copyright &copy; 2009-2011" 
-			       (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
-		(:div :class "mydiv" :id "content"
-    		          ,(if (> (length toc) 1)
-			     `(:div :id "toc" ,toc))))))))))
-
-(defun not-root-htmlp (dir)
-  (if (equal dir *sitehtmldir*) nil dir))
+            (subseq content (+ start 8) (- end 1))))))))
 
 (defun toc-html (dir)
   (let ((toc (generate-toc dir)))
@@ -267,39 +81,23 @@ is replaced with replacement."
           ,head
 	  ,body))))
 
-(defmacro index-page$ (dir)
+(defmacro index-page (dir)
   (let ((file (concat  *sitehtmldir* dir "index.html"))
         (head (index-head-html dir))
         (body (index-body-html dir)))
     `(page ,file ,head ,body)))
 
-(defmacro content-page$ (dir txt)
-  (let ((file (concat  *sitehtmldir* dir (txt-html txt)))
-        (head (content-head-html dir txt))
-        (body (content-body-html dir txt)))
+(defmacro content-page (dir tex)
+  (let ((file (concat  *sitehtmldir* dir (html-file tex)))
+        (head (content-head-html dir tex))
+        (body (content-body-html dir tex)))
     `(page ,file ,head ,body)))
 
-(defmacro index-page (dir)
-  "Generates the html for content page"
-  (let ((file (concat  *sitehtmldir* dir "index.html")))
-    `(with-open-file (str ,file :direction :output
-			  :if-exists :supersede
-			  :if-does-not-exist :create)
-       (cl-who:with-html-output (str nil :prologue t :indent t)
-	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
-          ,(index-head-html dir)
-	  ,(index-body-html dir))))))
-
-(defmacro content-page (dir txt)
-  "Generates the html for content page"
-  (let ((file (concat  *sitehtmldir* dir (txt-html txt))))
-    `(with-open-file (str ,file :direction :output
-			  :if-exists :supersede
-			  :if-does-not-exist :create)
-       (cl-who:with-html-output (str nil :prologue t :indent t)
-	 (:html :xmlns "http://www.w3.org/1999/xhtml" :|xml:lang| "en" :lang "en"
-          ,(content-head-html dir txt)
-	  ,(content-body-html dir txt))))))
+(defmacro home-page (dir tex)
+  (let ((file (concat  *sitehtmldir* dir (html-file tex)))
+        (head (content-head-html dir tex))
+        (body (home-body-html dir tex)))
+    `(page ,file ,head ,body)))
 
 (defun index-body-html (dir)
   `(:body
@@ -315,6 +113,13 @@ is replaced with replacement."
 	,(sidebar-html dir)
 	,(content-html dir txt))))
 
+(defun home-body-html (dir txt)
+  `(:body
+     (:div :class "mydiv" :id "page"
+	,(logo-html dir)
+	,(sidebar-html dir)
+	,(home-html dir txt))))
+
 (defun sidebar-html (dir)
   `(:div :class "mydiv" :id "sidebar"
      ,(menu-html dir)
@@ -327,9 +132,16 @@ is replaced with replacement."
         ,(generate-string (concat *sitedir* "addthis.txt"))
         ,(generate-string (concat *sitedir* "disqus.txt")))))
 
+(defun home-html (dir txt)
+  (let ((body-content (extract-body dir txt)))
+    `(:div :class "mydiv" :id "content"
+        ,body-content)))
+
 (defun index-head-html (dir)
   `(:head
      (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
+     (:title "Deepak Surti")
+     (:meta :name "description" :content "common-lisp lisp scheme programming essays posts languages")
      (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
      (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
      (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
@@ -339,11 +151,13 @@ is replaced with replacement."
      (:script :src ,(concat (rel-path dir) "extras/js/query.js") :type "text/javascript")
      (:script :src ,(concat (rel-path dir) "extras/js/jsMath/easy/load.js") :type "text/javascript")))
 
-(defun content-head-html (dir txt)
+(defun content-head-html (dir tex)
   `(:head
      (:meta :http-equiv "Content-type" :content "text/html;charset=UTF-8")
+     (:title ,(file-meta dir tex "\title{"))
+     (:meta :name "description" :content ,(file-meta dir tex "\title{"))
      (:meta :name "verify-v1" :content "edxugCFMRfI4UXy0Zd/2ZI2C6ES2Dk+HJQHLTXuSPAU=")
-     (:link :rel "stylesheet" :href ,(txt-css txt) :type "text/css")
+     (:link :rel "stylesheet" :href ,(css-file tex) :type "text/css")
      (:link :rel "stylesheet" :href ,(concat (rel-path dir) "extras/site.css") :type "text/css")
      (:link :rel "alternate" :href ,(concat (rel-path dir) "rss.xml") :type "application/rss+xml")
      (:link :rel "icon" :type "image/vnd.microsoft.icon" :href "favicon.ico")
@@ -376,30 +190,13 @@ is replaced with replacement."
        (:p :class "copyright" "Copyright &copy; 2009-2011"
          (:br) (:a :href ,(concat "mailto:" *email*) ,*author*)))))
 
-(defparameter months #("nil" "Jan" "Feb" "Mar" "Apr" "May" "Jun"
-		            "Jul" "Aug" "Sep" "Oct" "Nov" "Dec")
-   "The names for months used when generating date for an article.")
-
-(defun file-date (dir txt)
-  "Returns date in dd-mm-yyyy format."
-  (let ((ut (file-write-date (concat *sitedir* (not-rootp dir) txt))))
-    (multiple-value-bind (ig no re d m y)
-	(decode-universal-time ut)
-      (declare (ignore ig))
-      (declare (ignore no))
-      (declare (ignore re))
-      (concat (write-to-string d) "-"
-		   (svref months m) "-"
-		   (write-to-string y)))))
-
 (defun rel-path (dir)
   "Returns the relative path for dir relative to *sitedir*."
-  (if (not-rootp dir)
-      (let ((n (count #\/ dir))
-	    (rel ""))
-	(dotimes (i n)
-	  (setq rel (concat rel "../")))
-	rel)))
+  (let ((n (count #\/ dir))
+	(rel ""))
+    (dotimes (i n)
+      (setq rel (concat rel "../")))
+    rel))
 
 (defun dir-name (path)
   "The directory name on path. When path is 'essays/', returns the
@@ -415,16 +212,10 @@ is replaced with replacement."
 
 (defun generate-toc (dir &optional (root dir))
  "Generates the table of contents html fragment for dir."
-  (format t "Generating TOC ... ~%")
   (let ((acc)
         (file (cdr (assoc (dir-name dir) *dict* :test #'string-equal)))
         (content (mapcar #'(lambda (p)    
-	                  ;a list of 3 elements is returned as content info
-	                  ;else it is dir info where we exclude .DS_Store for mac
-	                  (if (or (and (= (length p) 3)
-                                       (not (search "image.txt" (car p))))
- 		                   (not (find #\. (car p))))
-		              `(:li (:a :href ,(concat "../" dir (txt-html (car p))) ,(cadr p)))))
+		              `(:li (:a :href ,(concat "../" dir (html-file p)) ,(file-meta dir p "\title{"))))
 	                   (content-info dir)))
         (children (child-dirs *sitedir* (concat *sitedir* dir))))
      (dolist (child children)
@@ -438,39 +229,21 @@ is replaced with replacement."
                                (if acc 
                                   `((:ul ,@(nreverse acc))))))))
 
-(defun content-tex (dir)
-"Find all html sniippet contents in txt file ordered with most recent
- for placing on the table of contents of each directory."
-  (sort (mapcar #'(lambda (p)
-		    (let ((info nil)
-			  (file-date (file-write-date (namestring p)))
-			  (nsp (namestring p)))
-		      (push (file-name nsp (concat *sitedir* dir))
-			    info)
-		      (with-open-file (str p :direction :input)
-			(push (read-line str nil :eof) info))
-		      (push file-date info)
-		      (nreverse info)))
-		 (directory (concat *sitedir* dir "*.tex")))
-	#'(lambda (x1 x2) (> x1 x2))
-	:key #'caddr))
+(defun file-meta (dir file meta)
+  (let* ((path (concat *sitedir* dir file))
+         (content (generate-string path))
+         (titletag (search meta content))
+         (start (search "{" content :start2 (+ titletag 1)))
+         (end (search "}" content :start2 (+ start 1))))
+     (subseq content (+ 1 start) end)))
 
 (defun content-info (dir)
 "Find all html sniippet contents in txt file ordered with most recent
  for placing on the table of contents of each directory."
-  (sort (mapcar #'(lambda (p)
-		    (let ((info nil)
-			  (file-date (file-write-date (namestring p)))
-			  (nsp (namestring p)))
-		      (push (file-name nsp (concat *sitedir* dir))
-			    info)
-		      (with-open-file (str p :direction :input)
-			(push (read-line str nil :eof) info))
-		      (push file-date info)
-		      (nreverse info)))
-		 (directory (concat *sitedir* dir "*.txt")))
-	#'(lambda (x1 x2) (> x1 x2))
-	:key #'caddr))
+  (mapcar #'(lambda (p)
+		    (let ((nsp (namestring p)))
+		      (file-name nsp (concat *sitedir* dir))))
+	 (directory (concat *sitedir* dir "*.tex"))))
 
 (defun file-name (path dir)
   "Find the file name on the path. The file is inside dir on path."
@@ -502,7 +275,7 @@ is replaced with replacement."
 (defun generate-all-index-htmls ()
   "Generate all index html forms for all dirs."
   (child-dirs *sitedir* *sitedir* #'(lambda (p)
-                                      `(generate-index-html ,p))))
+                                      `(index-page ,p))))
 (defun validate-all-index-htmls ()
   "Generate all index html forms for all dirs."
   (child-dirs *sitedir* *sitedir* #'(lambda (p)
@@ -513,7 +286,7 @@ is replaced with replacement."
   (apply #'append (all-dirs *sitedir* 
                             #'(lambda (dir)
                                 (mapcar #'(lambda (p)
-                                            `(generate-html ,dir ,(car p)))
+                                            `(content-page ,dir ,p))
                                         (content-info dir))))))
 
 (defun validate-all-content-htmls ()
@@ -521,7 +294,7 @@ is replaced with replacement."
   (apply #'append (all-dirs *sitedir* 
                             #'(lambda (dir)
                                 (mapcar #'(lambda (p)
-                                            `(validate-html ,(concat *sitehtmldir* dir (txt-html (car p)))))
+                                            `(validate-html ,(concat *sitehtmldir* dir (html-file p))))
                                         (content-info dir))))))
 
 (defun validate-all-generated-css ()
@@ -529,39 +302,41 @@ is replaced with replacement."
   (apply #'append (all-dirs *sitedir* 
                             #'(lambda (dir)
                                 (mapcar #'(lambda (p)
-                                            `(validate-css ,(concat *sitehtmldir* dir (txt-css (car p)))))
+                                            `(validate-css ,(concat *sitehtmldir* dir (css-file p))))
                                         (content-info dir))))))
+(defun tex-script-meta (dir &optional tex)
+  (mapcar #'(lambda (p)
+	      (list (concat *intsitedir* dir)		
+		    (concat *sitedir* dir p)
+		    (concat *intsitedir* dir p)
+		    (concat *sitehtmldir* dir)
+		    (concat *intsitedir* dir (css-file p))))
+	  (if tex (list tex) (content-info dir))))
 
 (defun generate-all-tex-cmds ()
-  "Generate all content html forms for all dirs."
-  (apply #'append (all-dirs *sitedir* 
-                            #'(lambda (dir)
-                                (mapcar #'(lambda (p)
- 				            (list (concat *intsitedir* dir)		
- 				                  (concat *sitedir* dir (txt-tex (car p)))
-                                                  (concat *intsitedir* dir (txt-tex (car p)))
-  						  (concat *sitehtmldir* dir)
- 						  (concat *intsitedir* dir (txt-css (car p)))))
-                                        (append (content-info dir)
- 						(content-tex dir)))))))
+  (append (tex-script-meta "")
+	  (apply #'append (all-dirs *sitedir* #'tex-script-meta))))
 
-(defun generate-tex-script ()
+(defun cmds (obj)
+  (let ((cd (concat "cd" " " (car obj)))
+        (cp (concat "cp" " " (cadr obj) " " (car obj)))
+        (tex (concat "htlatex" " " (caddr obj) " " "xhtml,fn-in,sections+")) ;fn-in generates footnote on same html page
+        (cp2 (concat "cp" " " (car (cddddr obj)) " " (cadddr obj))))
+    (values cd cp tex cp2)))
+
+(defun generate-tex-script (cmds)
   "Generates an sh script which contains commands to execute htlatex"
   (with-open-file (str (concat *intsitedir* "gen-tex.sh")
                        :direction :output 
 		       :if-exists :supersede :if-does-not-exist :create)
-    (let ((cmds (generate-all-tex-cmds)))
-      (format str "~A ~%" (concat "cp -r" " " *siteextras* " " *intsitedir*))
-      (format str "~A ~% ~%" (concat "cp -r" " " *siteextras* " " *sitehtmldir*))
-      (dolist (obj cmds)
-        (let ((cd (concat "cd" " " (car obj)))
-              (cp (concat "cp" " " (cadr obj) " " (car obj)))
-              (tex (concat "htlatex" " " (caddr obj) " " "xhtml,fn-in")) ;fn-in generates footnote on same html page
-     	      (cp2 (concat "cp" " " (car (cddddr obj)) " " (cadddr obj))))
-          (format str "~A ~%" cd)
-          (format str "~A ~%" cp)
-          (format str "~A ~%" tex)
-          (format str "~A ~% ~%" cp2))))))
+    (format str "~A ~%" (concat "cp -r" " " *siteextras* " " *intsitedir*))
+    (format str "~A ~% ~%" (concat "cp -r" " " *siteextras* " " *sitehtmldir*))
+    (dolist (obj cmds)
+      (multiple-value-bind (cd cp tex cp2) (cmds obj) 
+	(format str "~A ~%" cd)
+	(format str "~A ~%" cp)
+	(format str "~A ~%" tex)
+	(format str "~A ~% ~%" cp2)))))
 
 (defun build-dict ()
 "Build dictionary for meaningful names for directories when generating table of contents."
@@ -594,30 +369,7 @@ is replaced with replacement."
 
 (defun rss-link (dir txt)
   "Generatest the rss link for content in txt."
-  (concat "http://deepaksurti.com/" (not-rootp dir) (txt-html txt)))
-
-(defparameter days #("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun")
-  "The days used when generating date for rss feed.")
-
-(defun rss-date (dir txt)
-  "Generates a date in valid rss format."
-  (let ((ut (file-write-date (concat *sitedir* (not-rootp dir) txt))))
-    (multiple-value-bind (s mi h d m y dy dp z)
-	(decode-universal-time ut)
-      (declare (ignore dp))
-      (declare (ignore z))
-      (concat (svref days dy) ", " (rss-string d) " "
-		   (svref months m) " " (write-to-string y) " "
-		   (rss-string h) ":"
-		   (rss-string mi) ":"
-		   (rss-string s) " +0530"))))
-
-(defun rss-string (d)
-  "Generates rss string for number d. For numbers less than 10,
-  01..09 is expected otherwise rss validation fails."
-  (if (< d 10)
-      (concatenate 'string "0" (write-to-string d))
-      (write-to-string d)))
+  (concat "http://deepaksurti.com/" dir (html-file txt)))
 
 (defmacro generate-rss ()
   "Generates the rss xml feed."
@@ -631,20 +383,18 @@ is replaced with replacement."
 			      ,@(apply #'append
 				       (mapcar #'(lambda (dir)
 						   (mapcar #'(lambda (p)
-							       (let ((title (cadr p))
-								     (description (apply #'concatenate 'string
-											 (cddr (generate-content dir (car p)))))
-								     (link (rss-link dir (car p)))
-								     (date (rss-date dir (car p))))
+							       (let ((title (file-meta dir p "\title{"))
+								     (link (rss-link dir p))
+								     (date (file-meta dir p "\date{")))
 								 `(xml-emitter:rss-item ,title
 											:author ,(concat *author* 
                                                                                                                " " *email*)
 											:link ,link
-											:description ,description
+											:description ,title
 											:guid ,link
 											:pubDate ,date)))
 							   (content-info dir)))
-					       (all-dirs *sitedir*)))))))
+					       (remove "credits/" (all-dirs *sitedir*) :test #'equal)))))))
 
 ;let us use drakma to validate our htmls generated
 (require :drakma)
@@ -734,15 +484,14 @@ is replaced with replacement."
      (format t "Creating html directory...~%")
      (ensure-all-dirs-exist)
      (format t "Generating script that generates intermediate html from latex...")
-     (generate-tex-script)
+     (generate-tex-script (generate-all-tex-cmds))
      (format t "Now executing the script. This may take some time...")
      (sb-ext:run-program "/bin/sh" (list (concat *intsitedir* "/gen-tex.sh")) :output t) 
      (build-dict)
      (format t "Publishing. Please wait...~%")
      (format t "Publishing htmls...~%")
      ,@(generate-all-index-htmls)
-     (create-index-txt) 
-     (generate-html ,*sitedir* "index.txt")
+     (home-page "" "index.tex")
      ,@(generate-all-content-htmls)
      (format t "Publishing htmls done...~%")
      (format t "Publishing rss...~%")
@@ -764,55 +513,41 @@ is replaced with replacement."
      (validate-rss)
      (format t "Validating RSS Done...~%")
      (if (zerop *errors*)
-         (progn
-           (pub-date)
-           (archive)
-	   (format t "Congratulations! Your entire website is W3C Html,Css, Rss Compliant. Now publish your website with pride..."))
+	 (format t "Congratulations! Your entire website is W3C Html,Css, Rss Compliant. Now publish your website with pride...")
 	 (format t "Sorry. ~A files did not pass validation. Please check and fix the errors. Then try again..." *errors*))))
 
-(defun pub-date ()
-  "Store the date when the website was last published."
-  (let ((file (concat *sitedir* "pub.txt")))
-     (with-open-file (str file :direction :output :if-exists :supersede)
-        (princ (get-universal-time) str))))
-
-(defun archive ()
- "Archive all the txt file names that have been published."
-  (let ((file (concat *sitedir* "arch.txt")))
-    (with-open-file (str file :direction :output :if-exists :supersede :if-does-not-exist :create)
-      (mapcar #'(lambda (dir)
-                  (mapcar #'(lambda (content)
-                              (if content 
-                                  (princ (concat dir (car content)) str)))
-                          (content-info dir)))
-              (all-dirs *sitedir*)))))
-              
-(defun create-index-txt ()
-  "Generate the content for the home page. The home page will have 
-  notifications for new and updated content."
-  (let ((file (concat *sitedir* "index.txt")))
-    (with-open-file (str file :direction :output :if-exists :supersede :if-does-not-exist :create) 
-      (format str "<img src=\"extras/images/home.png\" alt=\"Miracle!\"></img>~%")
-      (format str "Some meta tag not used for home page~%")
-      (format str "~%"))))
-
-(defun robots-txt ()
-  "Generates the robots txt file that is used by search engines
-   to allow/disallow access to content on your website."
-  (with-open-file (str (concat *sitehtmldir* "robots.txt")
-                       :direction :output
-                       :if-exists :supersede 
-                       :if-does-not-exist :create)
-    (format str "User-agent: *~%")
-    (format str "User-agent:Googlebot-Image ~%")
-    (format str "Disallow: / ~%"))) 
-
-;TODO for wwwc
-;First test for one index file
-;Covert all index.txt files to index.tex . 
-;remove delicious file as dont know how to generate javascript tags via tex
-;First test for one below
-;Convert all other txt files to tex files. From txt files remove except top two lines
-;Then repeat for all other articles
-;publish website successfully
-;then ftp to our server
+(defmacro publish-page (dir tex)
+  "Generates the forms for publising a single page while updating the relevant index page."
+  `(progn
+     (format t "Creating intermediate directory...~%")
+     (ensure-all-int-dirs-exist)
+     (format t "Creating html directory...~%")
+     (ensure-all-dirs-exist)
+     (format t "Generating script that generates intermediate html from latex...")
+     (generate-tex-script (tex-script-meta ,dir ,tex))
+     (format t "Now executing the script. This may take some time...")
+     (sb-ext:run-program "/bin/sh" (list (concat *intsitedir* "/gen-tex.sh")) :output t) 
+     (build-dict)
+     (format t "Publishing. Please wait...~%")
+     (format t "Publishing htmls...~%")
+     (content-page ,dir ,tex)
+     (format t "Publishing htmls done...~%")
+     (format t "Publishing rss...~%")
+     (generate-rss)
+     (format t "Publishing rss done...~%")
+     (format t "Validating htmls, css and rss. Please wait. This may take time...~%")
+     (setf *errors* 0)
+     (setf drakma:*header-stream* nil) ;otherwise lots is printed on standard output in case it was set on repl
+     (format t "Validating HTMLs...")
+     (validate-html ,(concat *sitehtmldir* dir (html-file tex))) 
+     (format t "Validating HTMLs Done...~%")
+     (format t "Validating CSS...~%")
+     (validate-css ,(concat *sitehtmldir* dir (css-file tex))) 
+     (validate-css ,(concat *sitehtmldir* "extras/" "site.css"))
+     (format t "Validating CSS Done...~%")
+     (format t "Validating RSS...~%")
+     (validate-rss)
+     (format t "Validating RSS Done...~%")
+     (if (zerop *errors*)
+	 (format t "Congratulations! Your content is W3C Html,Css, Rss Compliant. Now publish your website with pride...")
+	 (format t "Sorry. ~A files did not pass validation. Please check and fix the errors. Then try again..." *errors*))))
