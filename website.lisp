@@ -225,8 +225,8 @@ is replaced with replacement."
   (let ((acc)
         (file (cdr (assoc (enough-namestring dir *sitedir*) *dict* :test #'string-equal)))
         (content (mapcar #'(lambda (p)    
-		              `(:li (:a :href ,(concat "../" (car (last (pathname-directory dir))) 
-					               "/" (file-wext p "html")) 
+		              `(:li (:a :href ,(concat (enough-namestring dir root) 
+					               (file-wext p "html")) 
    					      ,(file-meta dir p "\title{"))))
 	                   (content-info dir)))
         (children (child-dirs% dir)))
@@ -351,7 +351,7 @@ is replaced with replacement."
   		     (css (merge-pathnames (file-wext p "css") target)))
 		 (list (namestring target) (namestring file)
           	       (namestring target-file) (namestring html)
-  		       (namestring css))))
+  		       (namestring css) (namestring dir))))
 	  (if tex (list tex) (content-info dir))))
 
 (defun generate-all-tex-cmds ()
@@ -360,14 +360,15 @@ is replaced with replacement."
 
 (defun cmds (obj)
   (let ((cd (concat "cd" " " (car obj)))
-        (cp (concat "cp" " " (cadr obj) " " (car obj)))
+        (cp (concat "cp" " " (car (last obj)) "*" " " (car obj)))
         ;fn-in generates footnote on same html page
         ;sections+ generates cross references between hyperlinks
         ;jsmath invokes the jsmath mode so math equations are handled by jsmath
         (tex (concat "htlatex" " " (caddr obj) " " "xhtml,fn-in,sections+,jsmath")) 
         (cp2 (concat "cp" " " (car (cddddr obj)) " " (cadddr obj)))
-        (cp3 (concat "cp" " " (car obj) "*.svg" " " (cadddr obj))))
-    (values cd cp tex cp2 cp3)))
+	(cp3 (concat "cp" " " (car obj) "*.svg" " " (cadddr obj)))
+        (cp4 (concat "cp" " " (car obj) "*.png" " " (cadddr obj))))
+    (values cd cp tex cp2 cp3 cp4)))
 
 (defun generate-tex-script (cmds)
   "Generates an sh script which contains commands to execute htlatex"
@@ -377,12 +378,13 @@ is replaced with replacement."
     (format str "~A ~%" (concat "cp -r" " " *siteextras* " " *siteintdir*))
     (format str "~A ~% ~%" (concat "cp -r" " " *siteextras* " " *sitehtmldir*))
     (dolist (obj cmds)
-      (multiple-value-bind (cd cp tex cp2 cp3) (cmds obj) 
+      (multiple-value-bind (cd cp tex cp2 cp3 cp4) (cmds obj) 
 	(format str "~A ~%" cd)
 	(format str "~A ~%" cp)
 	(format str "~A ~%" tex)
 	(format str "~A ~%" cp2)
-        (format str "~A ~% ~%" cp3)))))
+	(format str "~A ~%" cp3)
+        (format str "~A ~% ~%" cp4)))))
 
 (defun build-dict ()
 "Build dictionary for meaningful names for directories when generating table of contents."
