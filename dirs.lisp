@@ -1,0 +1,10 @@
+(in-package #:website)
+
+(defvar *sitedir* "/Users/deepaksurti/wwwc/")
+(defvar *sitehtmldir* "/Users/deepaksurti/www/")
+(defvar *siteintdir* "/Users/deepaksurti/www-int/")
+(defvar *siteextras* "/Users/deepaksurti/www-extras/")
+(defvar *author* "Deepak Surti")
+(defvar *email* "dmsurti@gmail.com")
+(defvar *sitename* "Deepak Surti's website")
+(defvar *dict* nil)
