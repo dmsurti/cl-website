@@ -35,9 +35,14 @@ Instructions to load and run
 
    Please refer to wwwc for more details.
 
-4. To generate the website run:
+4. Modify the parameters *site[X]dir* and others for your settings. See
+   dirs.lisp for the available parameters.
+
+5. Now, to generate the website run:
    (website:publish-website)
 
-5. To generate html for some content run:
+6. To generate html for some content run:
    (website:publish-page #P"dir/to/latex-content"
   	  		 #P"file.latex")
+
+
