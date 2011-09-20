@@ -1,11 +1,13 @@
 (in-package #:website)
 
 (defun toc-html (dir)
-  (let* (
-         (toc (generate-toc dir)))
-    `(:div :class "mydiv" :id "content"
-       ,(if (> (length toc) 1)
-           `(:div :id "toc" ,toc)))))
+  (let* ((toc (generate-toc dir)))
+    `(:div :class "container"
+       (:div :class "content"
+         (:div :class "entry"
+	   (:div :class "post"
+              ,(if (> (length toc) 1)
+                `(:div :id "toc" ,toc))))))))
 
 (defmacro page (file head body)
   "Generates the html for content page"
@@ -40,39 +42,38 @@
 (defun index-body-html (dir)
   `(:body
      (:div :class "mydiv" :id "page"
-	,(logo-html dir)
 	,(sidebar-html dir)
 	,(toc-html dir))))
 
 (defun content-body-html (dir tex)
   `(:body
      (:div :class "mydiv" :id "page"
-	,(logo-html dir)
 	,(sidebar-html dir)
 	,(content-html dir tex))))
 
 (defun home-body-html (dir txt)
   `(:body
-     (:div :class "mydiv" :id "page"
-	,(logo-html dir)
-	,(sidebar-html dir)
-	,(home-html dir txt))))
+     (:div :class "container"
+	     ,(sidebar-html dir)
+	     ,(home-html dir txt))))
 
 (defun sidebar-html (dir)
   `(:div :class "mydiv" :id "sidebar"
-     ,(menu-html dir)
-     ,(info-html dir))) 
+     ,(menu-html dir))) 
 
 (defun content-html (dir tex)
   (let ((body-content (extract-body dir tex)))
-    `(:div :class "mydiv" :id "content"
-        ,body-content 
-        ,(generate-string (concat *sitedir* "addthis.txt"))
-        ,(generate-string (concat *sitedir* "disqus.txt")))))
+    `(:div :class "container"
+       (:div :class "content"
+	 (:div :class "entry"
+	   (:div :class "post"
+	      ,body-content
+	      ,(generate-string (concat *sitedir* "addthis.txt"))
+              ,(generate-string (concat *sitedir* "disqus.txt"))))))))
 
 (defun home-html (dir tex)
   (let ((body-content (extract-body dir tex)))
-    `(:div :class "mydiv" :id "content"
+    `(:div :class "content"
         ,body-content)))
 
 ;merge index and content into a macro
@@ -110,10 +111,18 @@
     (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!")))
 
 (defun menu-html (dir)
-  `(:div :class "mydiv"
-     (:ul :class "buttonmenu"
-       (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
-            ,@(generate-sidebar dir))))
+  `(:section :id "sidebar"
+     (:h1 (:a :href "/" "Miracle"))
+     (:p :id "tagline" (:a :href "/" "To see a miracle, be the miracle"))
+     (:subscribe 
+       (:ul 
+	 (:li 
+	   (:small "Subscribe:"
+	     (:a :href "http://deepaksurti.com/rss.xml" "rss")))))
+     (:nav
+       (:ul
+         (:li (:a :href ,(concat (rel-path dir) "index.html") "Home"))
+         ,@(generate-sidebar dir)))))
 
 (defun info-html (dir)
   `(:div :class "mydiv" :id "info"
