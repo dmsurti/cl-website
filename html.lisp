@@ -74,7 +74,9 @@
 (defun home-html (dir tex)
   (let ((body-content (extract-body dir tex)))
     `(:div :class "content"
-        ,body-content)))
+       (:div :class "entry"
+         (:div :class "post"
+           ,body-content)))))
 
 ;merge index and content into a macro
 (defun index-head-html (dir)
