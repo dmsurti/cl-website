@@ -67,8 +67,11 @@
        (:div :class "content"
 	 (:div :class "entry"
 	   (:div :class "post"
-	      ,body-content
-	      ,(generate-string (concat *sitedir* "addthis.txt"))
+	      ,body-content)
+	   (:br)
+           (:div
+	      ,(generate-string (concat *sitedir* "addthis.txt")))
+	   (:div
               ,(generate-string (concat *sitedir* "disqus.txt"))))))))
 
 (defun home-html (dir tex)
