@@ -4,34 +4,32 @@
 (in-package #:website)
 
 ;walk child directories at depth 1 and invoke function
-(defun generate-sidebar (dir)
+(defun generate-sidebar ()
   "Generates the html fragment for sidebar."
-    (mapcar #'(lambda (d)
-	         `(:li (:a :href ,(concat (rel-path dir) (dir-name d) "/index.html")
-                          ,(string-capitalize (dir-name d)))))
-	    (child-dirs% *sitedir*)))
+  (mapcar #'(lambda (d)
+	      `(:li (:a :href ,(car d) ,(cadr d))))
+	  '(("index.html" "About")
+	    ("archives.html" "Archives"))))
 
-;walk a tree depth wise for a directory completely and invoke function
-(defun generate-toc (dir &optional (root dir))
- "Generates the table of contents html fragment for dir."
-  (let ((acc)
-        (file (cdr (assoc (enough-namestring dir *sitedir*) *dict* :test #'string-equal)))
-        (content (mapcar #'(lambda (p)    
-		              `(:li (:a :href ,(concat (enough-namestring dir root) 
-					               (file-wext p "html")) 
-   					      ,(file-meta dir p "\title{"))))
-	                   (content-info dir)))
-        (children (child-dirs% dir)))
-     (dolist (child children)
-       (push (generate-toc child root) acc))
-     (if (equal (namestring root) (namestring dir)) 
-         (append `(:ul ,@(if content
-                            content))
-                  (nreverse acc))
-         (append `(:li ,file  ,(if content
-                                       `(:ul ,@content)))
-                               (if acc 
-                                  `((:ul ,@(nreverse acc))))))))
+(defun generate-monthly-toc (months)
+  (mapcar #'(lambda (month)
+	      `(:tr :class "archive"
+		    (:th ,(car month))
+		    (:td (:a :href ,(file-wext (caddr month) "html")
+			     ,(file-meta (cadr month) (caddr month) "\title{")))))
+	  months))
+
+(defun generate-yearly-toc (years)
+  (apply #'append (mapcar #'(lambda (year)
+			      `((:tr :class "archive" (:th ,(car year)))
+				,@(generate-monthly-toc (cdr year))))
+			  years)))
+
+(defun generate-toc ()
+  (apply #'append (mapcar #'(lambda (group)
+			      `((:tr :class "year" (:th (:br) ,(car group)))
+				,@(generate-yearly-toc (cdr group))))
+			  (group-files (files-by-date)))))
 
 ;replace with regular expression matching
 (defun file-meta (dir file meta)
@@ -55,15 +53,36 @@
 	               	   (file-namestring path)))
 	          (cl-fad:list-directory dir))))
 
-(defun generate-all-index-htmls ()
-  "Generate all index html forms for all dirs."
-  (child-dirs% *sitedir*  #'(lambda (p) `(index-page ,p))))
+(defun files-by-date ()
+  (sort (apply #'append
+	       (all-dirs *sitedir*
+			 #'(lambda (dir)
+			     (mapcar #'(lambda (f)
+					 (multiple-value-bind (y m d) (file-ymd dir f)
+					   (list y m d dir f)))
+				     (content-info dir)))))
+	#'>=
+	:key #'(lambda (meta)
+		 (parse-date (nth 3 meta) (nth 4 meta)))))
+
+(defun group-files (files)
+  (nreverse (mapcar #'(lambda (y)
+			(cons (car y)
+			      (mapcar #'(lambda (m)
+					  (cons (car m)
+						(group (cdr m) 3)))
+				      (group-by (group (cdr y) 4)))))
+		    (group-by files))))
 
 (defun validate-all-index-htmls ()
   "Generate all index html forms for all dirs."
   (child-dirs% *sitedir* #'(lambda (p) `(validate-html ,(merge-pathnames "index.html" 
 								         (merge-pathnames (enough-namestring p *sitedir*)
-										          *sitehtmldir*))))))
+											   *sitehtmldir*))))))
+
+(defun generate-home-page ()
+ (let ((latest (car (files-by-date))))
+  `(content-page ,(nth 3 latest) ,(nth 4 latest) "index.tex")))
 
 (defun generate-all-content-htmls ()
   "Generate all content html forms for all dirs."
@@ -115,9 +134,9 @@
         ;sections+ generates cross references between hyperlinks
         ;jsmath invokes the jsmath mode so math equations are handled by jsmath
         (tex (concat "htlatex" " " (caddr obj) " " "xhtml,fn-in,sections+,jsmath")) 
-        (cp2 (concat "cp" " " (car (cddddr obj)) " " (cadddr obj)))
-	(cp3 (concat "cp" " " (car obj) "*.svg" " " (cadddr obj)))
-        (cp4 (concat "cp" " " (car obj) "*.png" " " (cadddr obj))))
+        (cp2 (concat "cp" " " (car (cddddr obj)) " " *sitehtmldir*))
+	(cp3 (concat "cp" " " (car obj) "*.svg" " " *sitehtmldir*))
+        (cp4 (concat "cp" " " (car obj) "*.png" " " *sitehtmldir*)))
     (values cd cp tex cp2 cp3 cp4)))
 
 (defun generate-tex-script (cmds)
@@ -160,24 +179,25 @@
      (format t "Creating intermediate directory...~%")
      (ensure-all-dirs-exist *siteintdir*)
      (format t "Creating html directory...~%")
-     (ensure-all-dirs-exist *sitehtmldir*)
+     ;(ensure-all-dirs-exist *sitehtmldir*)
      (format t "Generating script that generates intermediate html from latex...")
      (generate-tex-script (generate-all-tex-cmds))
      (format t "Now executing the script. This may take some time...")
      (sb-ext:run-program "/bin/sh" 
-			 (list (concat *siteintdir* "/gen-tex.sh"))) 
-     (build-dict)
+			 (list (concat *siteintdir* "/gen-tex.sh")) :output t) 
+     ;(build-dict)
      (format t "Publishing. Please wait...~%")
      (format t "Publishing htmls...~%")
-     ,@(generate-all-index-htmls)
-     (home-page "/Users/deepaksurti/wwwc/" "index.tex")
+     (index-page) 
+     (content-page "/Users/deepaksurti/wwwc/" "about.tex")
      ,@(generate-all-content-htmls)
+     ,(generate-home-page)
      (format t "Publishing htmls done...~%")
      (format t "Publishing rss...~%")
      (generate-rss)
      (format t "Publishing rss done...~%")))
 
-(defmacro publish-page (dir tex)
+(defmacro publish-page (dir tex &optional out)
   "Generates the forms for publising a single page while updating the relevant index page."
   (let* ((html (merge-pathnames (enough-namestring dir *sitedir*) *sitehtmldir*))
          (html-file (merge-pathnames (file-wext tex "html") html))
@@ -187,15 +207,16 @@
      (format t "Creating intermediate directory...~%")
      (ensure-all-dirs-exist *siteintdir*)
      (format t "Creating html directory...~%")
-     (ensure-all-dirs-exist *sitehtmldir*)
+     ;(ensure-all-dirs-exist *sitehtmldir*)
      (format t "Generating script that generates intermediate html from latex...")
      (generate-tex-script (tex-script-meta ,dir ,tex))
      (format t "Now executing the script. This may take some time...")
      (sb-ext:run-program "/bin/sh" (list (concat *siteintdir* "/gen-tex.sh")) :output t) 
-     (build-dict)
+     ;(buid-dict)
      (format t "Publishing. Please wait...~%")
      (format t "Publishing htmls...~%")
-     (content-page ,dir ,tex)
+     (index-page)
+     (content-page ,dir ,tex ,out)
      (format t "Publishing htmls done...~%")
      (format t "Publishing rss...~%")
      (generate-rss)

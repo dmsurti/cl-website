@@ -109,6 +109,30 @@ is replaced with replacement."
           (push (funcall fn p) acc)))
     (nreverse acc)))
 
+(defparameter *months*
+	 '(("Jan" . 1) ("Feb" . 2) ("Mar" . 3) 
+	  ("Apr" . 4) ("May" . 5) ("Jun" . 6)
+  	  ("Jul" . 7) ("Aug" . 8) ("Sep" . 9)
+	  ("Oct" . 10) ("Nov" . 11) ("Dec" . 12)))
+
+(defun month->num (month)
+  (cdr (assoc month *months* :test #'equal)))
+
+(defun file-ymd (dir file)
+  (let ((str-date (file-meta dir file "\date{")))
+    (cl-ppcre:register-groups-bind (d m y)
+         ("(\\d{1,2})\\-(\\w{3})\\-(\\d{4})" str-date)
+      (values y m d))))
+
+(defun parse-date (dir file)
+  (let ((str-date (file-meta dir file "\date{")))
+    (cl-ppcre:register-groups-bind (d m y)
+				   ("(\\d{1,2})\\-(\\w{3})\\-(\\d{4})" str-date)
+				   (encode-universal-time 0 0 0 (parse-integer d) 
+							  (month->num m)
+							  (parse-integer y)
+							  0))))
+
 (defun hidden (path)
   (let ((found (search "." (car (last (pathname-directory path)))))) 
     (if found (= found 0))))
@@ -119,3 +143,23 @@ is replaced with replacement."
 	      (let ((target (merge-pathnames (enough-namestring path *sitedir*) target)))
 		(ensure-directories-exist target :verbose t)))
 	  (all-dirs *sitedir*)))
+
+(defun group (source n)
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+	     (let ((rest (nthcdr n source)))
+	       (if (consp rest)
+		   (rec rest (cons (subseq source 0 n) acc))
+		   (nreverse (cons source acc))))))
+    (if source (rec source nil) nil)))
+
+(defun group-by (source)
+  (let (acc)
+    (dolist (elt source)
+      (let* ((k (assoc (car elt) acc :test #'equal))
+	     (v (cdr k)))
+	(if k
+	    (setf (cdr k)
+		  (append (cdr elt) v))
+  	    (setf acc (acons (car elt) (cdr elt) acc)))))
+    acc))

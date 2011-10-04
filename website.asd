@@ -5,7 +5,8 @@
   :depends-on (#:cl-who
                #:drakma
                #:xml-emitter
-               #:cl-fad)
+               #:cl-fad
+	       #:cl-ppcre)
   :components ((:file "package")	
 	       (:file "dirs") 		;define directories
 	       (:file "utils")		;define utilities
