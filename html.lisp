@@ -2,12 +2,13 @@
 
 (defun toc-html ()
   (let* ((toc (generate-toc)))
-    `(:div :class "container"
-       (:div :class "content"
+    `(:div :id "container"
+       (:div :id "content"
          (:div :class "entry"
 	      ,(generate-string (concat *sitedir* "search.txt"))
               ,(if (> (length toc) 1)
-                `(:table :id "arc" ,@toc)))))))
+                `(:table :id "arc" ,@toc)))
+         ,(sidebar-html)))))
 
 (defmacro page (file head body)
   "Generates the html for content page"
@@ -26,11 +27,11 @@
          (body (index-body-html)))
     `(page ,file ,head ,body)))
 
-(defmacro content-page (dir tex &optional out)
+(defmacro content-page (dir tex neighbors &optional out)
   (let* ((target *sitehtmldir*)
          (file (merge-pathnames (file-wext (if out out tex) "html") target))
          (head (content-head-html dir tex))
-         (body (content-body-html dir tex out)))
+         (body (content-body-html dir tex neighbors out)))
     `(page ,file ,head ,body)))
 
 (defmacro about-page (dir tex)
@@ -40,16 +41,12 @@
     `(page ,file ,head ,body)))
 
 (defun index-body-html ()
-  `(:body
-     (:div :class "mydiv" :id "page"
-	,(sidebar-html)
-	,(toc-html))))
+  `(:body ,(toc-html)))
 
-(defun content-body-html (dir tex &optional out)
+(defun content-body-html (dir tex neighbors &optional out)
   `(:body
-     (:div :class "mydiv" :id "page"
-	,(sidebar-html)
-	,(content-html dir tex out))))
+     (:div :id "container"
+	,(content-html dir tex neighbors out))))
 
 (defun about-body-html (dir txt)
   `(:body
@@ -58,24 +55,35 @@
 	     ,(about-html dir txt))))
 
 (defun sidebar-html ()
-  `(:div :class "mydiv" :id "sidebar"
-     ,(menu-html))) 
+  (menu-html))
 
-(defun content-html (dir tex &optional out)
-  (let ((body-content (extract-body dir tex)))
-    `(:div :class "container"
-	   (:div :class "content"
-		 (:div :class "entry"
-		       (:div :class "post"
-			     ,body-content)
-		       (:br)
-		       ,(if out `(:div :class "all_posts" 
-				       (:a :href "archives.html" "See all posts &raquo;")))
-		       (:br)				
-		       (:div
-			,(generate-string (concat *sitedir* "addthis.txt")))
-		       (:div
-			,(generate-string (concat *sitedir* "disqus.txt"))))))))
+(defun content-html (dir tex neighbors &optional out)
+  (let* ((body-content (extract-body dir tex))
+	 (prev (car neighbors))
+	 (next (cadr neighbors)))
+    ` (:div :id "content"
+	 (:div :class "entry"
+	    (:div :class "post" ,body-content
+	      ,(if out
+		  `(:div :class "all_posts" 
+		     (:a :href "archives.html" "See all posts"))))
+              ,@(when (not out)
+	         `((:small)
+		 (:div :class "home_bottom")
+		 (:br)
+		 (:div :class "navigation"
+		   (:div :class "alignleft"
+		     ,(if prev 
+			`(:p "Previous post: " (:a :href ,(file-wext (car prev) "html")
+							 ,(cdr prev)))))
+		   (:div :class "alignright"
+		     ,(if next ; think macro evaluation here
+			`(:p "Next post: " (:a :href ,(file-wext (car next) "html")
+						     ,(cdr next))))))
+		 (:br)
+		 (:div ,(generate-string (concat *sitedir* "addthis.txt")))
+		 (:div ,(generate-string (concat *sitedir* "disqus.txt"))))))
+	    ,(sidebar-html))))
 
 (defun about-html (dir tex)
   (let ((body-content (extract-body dir tex)))
@@ -116,12 +124,12 @@
 
 (defun logo-html (dir)
   `(:div :class "mydiv" :id "header"
-    (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "Miracle!")))
+    (:img :src ,(concat (rel-path dir) "extras/images/site-logo2.png") :alt "miracle!")))
 
 (defun menu-html ()
   `(:section :id "sidebar"
-	     (:h1 (:a :href "/" "Miracle"))
-	     (:p :id "tagline" (:a :href "/" "To see a miracle, be the miracle"))
+	     (:h1 (:a :href "/" "miracle"))
+	     (:p :id "tagline" (:a :href "/" "to see a miracle,be the miracle"))
 	     (:subscribe 
 	      (:ul 
 	       (:li 

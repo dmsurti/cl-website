@@ -40,7 +40,8 @@ is replaced with replacement."
 
 (defun file-wext (file ext)
   "Return the html file name for given file."
-  (concat (subseq file 0 (- (length file) 3)) ext))
+  (if file
+    (concat (subseq file 0 (- (length file) 3)) ext)))
 
 ;replace with regular expression matching
 (defun extract-body (dir tex)

@@ -65,6 +65,23 @@
 	:key #'(lambda (meta)
 		 (parse-date (nth 3 meta) (nth 4 meta)))))
 
+(defun dir+file (pos files)
+  (and (>= pos 0)
+       (let ((meta (nth pos files)))
+         (if meta 
+           (cons (nth 4 meta)
+                 (file-meta (nth 3 meta) (nth 4 meta) "\title{"))))))
+
+(defun neighbors (tex)
+  (let* ((files (files-by-date))
+	 (pos (position tex 
+			files 
+			:key #'(lambda (file) 
+			         (nth 4 file))
+		        :test #'equal)))
+    (list  (dir+file (+ pos 1) files)
+	   (dir+file (- pos 1) files))))
+
 (defun group-files (files)
   (nreverse (mapcar #'(lambda (y)
 			(cons (car y)
@@ -82,14 +99,14 @@
 
 (defun generate-home-page ()
  (let ((latest (car (files-by-date))))
-  `(content-page ,(nth 3 latest) ,(nth 4 latest) "index.tex")))
+  `(content-page ,(nth 3 latest) ,(nth 4 latest) nil "index.tex")))
 
 (defun generate-all-content-htmls ()
   "Generate all content html forms for all dirs."
   (apply #'append (all-dirs *sitedir* 
                             #'(lambda (dir)
                                 (mapcar #'(lambda (p)
-                                            `(content-page ,dir ,p))
+                                            `(content-page ,dir ,p ,(neighbors p)))
                                         (content-info dir))))))
 
 (defun validate-all-content-htmls ()
@@ -111,6 +128,7 @@
 							                      (merge-pathnames (enough-namestring dir *sitedir*)
 											       *sitehtmldir*))))
                                         (content-info dir))))))
+
 (defun tex-script-meta (dir &optional tex)
   (mapcar #'(lambda (p)
 	      (let* ((target (merge-pathnames (enough-namestring dir *sitedir*) *siteintdir*))
@@ -189,7 +207,7 @@
      (format t "Publishing. Please wait...~%")
      (format t "Publishing htmls...~%")
      (index-page) 
-     (content-page "/Users/deepaksurti/wwwc/" "about.tex")
+     (content-page "/Users/deepaksurti/wwwc/" "about.tex" nil)
      ,@(generate-all-content-htmls)
      ,(generate-home-page)
      (format t "Publishing htmls done...~%")
@@ -197,12 +215,16 @@
      (generate-rss)
      (format t "Publishing rss done...~%")))
 
+;Usage:
+;(website:publish-page <dir> <tex>) to publish a page
+;(website:publish-page <dir> <tex> "index.tex") to publish a page as a new latest article
 (defmacro publish-page (dir tex &optional out)
   "Generates the forms for publising a single page while updating the relevant index page."
   (let* ((html (merge-pathnames (enough-namestring dir *sitedir*) *sitehtmldir*))
          (html-file (merge-pathnames (file-wext tex "html") html))
          (css (merge-pathnames (file-wext tex "css") html))
-         (sitecss (merge-pathnames "extras/site.css" *sitehtmldir*)))
+         (sitecss (merge-pathnames "extras/site.css" *sitehtmldir*))
+	 (neighbors (neighbors tex)))
   `(progn
      (format t "Creating intermediate directory...~%")
      (ensure-all-dirs-exist *siteintdir*)
@@ -216,7 +238,7 @@
      (format t "Publishing. Please wait...~%")
      (format t "Publishing htmls...~%")
      (index-page)
-     (content-page ,dir ,tex ,out)
+     (content-page ,dir ,tex ,neighbors  ,out)
      (format t "Publishing htmls done...~%")
      (format t "Publishing rss...~%")
      (generate-rss)
