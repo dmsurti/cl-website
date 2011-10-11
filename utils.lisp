@@ -33,7 +33,7 @@ is replaced with replacement."
       (do ((line (read-line str nil :eof)
 		 (read-line str nil :eof)))
 	  ((eql line :eof))
-	    (if (and replace (search "&" line))
+	    (if (and replace (search "&" line)) 
 		(push (replace-all line "&" "&amp;") all-lines)
                 (push (concat line " ") all-lines))))
     (nreverse all-lines)))
@@ -42,6 +42,12 @@ is replaced with replacement."
   "Return the html file name for given file."
   (if file
     (concat (subseq file 0 (- (length file) 3)) ext)))
+
+(defun add-iframe (str)
+ (let* ((open (replace-all str "&#x003C;" "<" :test #'string=))
+	(close (replace-all open "&#x003E;" ">" :test #'string=))
+	(space (replace-all close "&#x00A0;" " " :test #'string=)))
+   space))  
 
 ;replace with regular expression matching
 (defun extract-body (dir tex)
@@ -53,7 +59,7 @@ is replaced with replacement."
         (let* ((start (search "<body" content))
 	       (start< (search ">" content :start2 start)))
           (let ((end (search "</body>" content :start2 start)))
-            (subseq content (+ start< 1) (- end 1))))))))
+            (add-iframe (subseq content (+ start< 1) (- end 1)))))))))
 
 ;file and directory function
 (defun rel-path (dir)
