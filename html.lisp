@@ -62,27 +62,30 @@
 	 (prev (car neighbors))
 	 (next (cadr neighbors)))
     ` (:div :id "content"
-	 (:div :class "entry"
-	    (:div :class "post" ,body-content
-	      ,(if out
-		  `(:div :class "all_posts" 
-		     (:a :href "archives.html" "See all posts"))))
-              ,@(when (not out)
-	         `((:small)
-		 (:div :class "home_bottom")
-		 (:br)
-		 (:div :class "navigation"
-		   (:div :class "alignleft"
-		     ,(if prev 
-			`(:p "Previous post: " (:a :href ,(file-wext (car prev) "html")
-							 ,(cdr prev)))))
-		   (:div :class "alignright"
-		     ,(if next ; think macro evaluation here
-			`(:p "Next post: " (:a :href ,(file-wext (car next) "html")
-						     ,(cdr next))))))
-		 (:br)
-		 (:div ,(generate-string (concat *sitedir* "addthis.txt")))
-		 (:div ,(generate-string (concat *sitedir* "disqus.txt"))))))
+	    (:div :class "entry"
+		  (:div :class "post" ,body-content
+			,@(when out
+				`((:div :class "all_posts" 
+					(:a :href "archives.html" "See all posts"))
+				  (:br)
+				  (:div ,(generate-string (concat *sitedir* "addthis.txt")))
+				  (:div ,(generate-string (concat *sitedir* "disqus.txt"))))))
+		  ,@(when (not out)
+			  `((:small)
+			    (:div :class "home_bottom")
+			    (:br)
+			    (:div :class "navigation"
+				  (:div :class "alignleft"
+					,(if prev 
+					     `(:p "Previous post: " (:a :href ,(file-wext (car prev) "html")
+									,(cdr prev)))))
+				  (:div :class "alignright"
+					,(if next ; think macro evaluation here
+					     `(:p "Next post: " (:a :href ,(file-wext (car next) "html")
+								    ,(cdr next))))))
+			    (:br)
+			    (:div ,(generate-string (concat *sitedir* "addthis.txt")))
+			    (:div ,(generate-string (concat *sitedir* "disqus.txt"))))))
 	    ,(sidebar-html))))
 
 (defun about-html (dir tex)
