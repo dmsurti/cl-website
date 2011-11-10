@@ -131,7 +131,10 @@
 	      (:ul 
 	       (:li 
 		(:small "Subscribe:"
-			(:a :href "http://deepaksurti.com/rss.xml" "rss")))))
+			(:a :href "http://deepaksurti.com/rss.xml" "rss")))
+	       (:li 
+		(:small "Contact:"
+			(:a :href "mailto:dmsurti@gmail.com" "email")))))
 	     (:nav
 	      (:ul
 	       (:li (:a :href "about.html" "About"))
